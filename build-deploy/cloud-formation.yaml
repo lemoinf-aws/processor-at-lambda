@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  Función Lambda que utiliza el patrón de diseño Processor y un rol IAM para ejecutarla.
+
+Parameters: 
+  S3BucketParameter:
+    Description: S3 bucket where the lambda code (.zip) is stored
+    Type: String
+    AllowedPattern: (?=^.{3,63}$)(?!^(\\d+\\.)+\\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\\-]*[a-z0-9])\\.)*([a-z0-9]|[a-z0-9][a-z0-9\\-]*[a-z0-9])$)
+    ConstraintDescription: S3 bucket has an invalid format
+  S3KeyCodeZipFileParameter:
+    Description: S3Key is the lambda code (.zip)
+    Type: String
+
+Resources:
+  ProcessorLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Role for lambda execution
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      RoleName: processor-at-lambda-role
+  ProcessorLambdaCode:
+    DependsOn: ProcessorLambdaRole
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Code for processor@lambda
+      Runtime: python3.8
+      Role: !GetAtt ProcessorLambdaRole.Arn
+      Handler: app.handler
+      FunctionName: processor-at-lambda-function
+      Code:
+        S3Bucket: !Ref S3BucketParameter
+        S3Key: !Ref S3KeyCodeZipFileParameter
+
+Outputs:
+  ProcessorLambdaRoleArn:
+    Description: processor@lambda role ARN
+    Value: !GetAtt ProcessorLambdaRole.Arn
+  ProcessorLambdaCodeArn:
+    Description: processor@lambda code ARN
+    Value: !GetAtt ProcessorLambdaCode.Arn
+  ProcessorLambdaCodeLocation:
+    Description: processor@lambda code (.zip)
+    Value:
+      !Join [ '/', [ 's3:/', !Ref S3BucketParameter, !Ref S3KeyCodeZipFileParameter ] ]
